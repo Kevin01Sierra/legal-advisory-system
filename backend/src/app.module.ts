@@ -19,13 +19,13 @@ import { CodigoPenalModule } from './codigo-penal/codigo-penal.module';
     // Configuración de TypeORM con PostgreSQL
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST ?? 'localhost',
-      port: parseInt(process.env.DB_PORT ?? '5433', 10),
-      username: process.env.DB_USERNAME ?? 'postgres',
-      password: process.env.DB_PASSWORD ?? 'password',
-      database: process.env.DB_DATABASE ?? 'edutrack',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true, // Solo para desarrollo, en producción usar migraciones
+      host: process.env.DATABASE_HOST,
+      port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
+      username: process.env.DATABASE_USER,
+      password: process.env.DATABASE_PASSWORD,
+      database: process.env.DATABASE_NAME,
+      autoLoadEntities: true,
+      synchronize: process.env.NODE_ENV === 'development', // Solo en desarrollo
       logging: process.env.NODE_ENV === 'development',
     }),
 
