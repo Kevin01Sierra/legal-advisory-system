@@ -1,0 +1,209 @@
+/* Layout Container */
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+}
+
+.headerContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+}
+
+.appLogo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logoIcon {
+  font-size: 2.5rem;
+}
+
+.logoContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.appTitle {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.appSubtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* User Section */
+.userSection {
+  position: relative;
+}
+
+.userButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.userButton:hover {
+  background: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.userName {
+  font-weight: 500;
+  color: var(--text);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownArrow {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: 0.25rem;
+}
+
+/* User Dropdown */
+.userDropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.userInfo {
+  padding: 1rem;
+}
+
+.userFullName {
+  margin: 0 0 0.25rem 0;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.userEmail {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: var(--border);
+}
+
+.logoutButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--error);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.logoutButton:hover {
+  background: var(--error-light);
+}
+
+.logoutButton span {
+  font-size: 1.2rem;
+}
+
+/* Main Content */
+.mainContent {
+  flex: 1;
+  overflow: hidden;
+  background: var(--background);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .headerContainer {
+    padding: 0.75rem 1rem;
+  }
+
+  .appTitle {
+    font-size: 1rem;
+  }
+
+  .appSubtitle {
+    font-size: 0.75rem;
+  }
+
+  .logoIcon {
+    font-size: 2rem;
+  }
+
+  .userName {
+    display: none;
+  }
+
+  .userDropdown {
+    min-width: 200px;
+  }
+}
