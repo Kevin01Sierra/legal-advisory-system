@@ -1,58 +1,40 @@
+/**
+ * AuthLayout.jsx
+ * Layout compartido para páginas de autenticación
+ * ACTUALIZADO con export default
+ */
+
 import React from 'react';
+import { APP_NAME, LEGAL_INFO } from '../../utils/constants';
 import styles from '../../styles/components/Auth.module.css';
 
-/**
- * Layout compartido para páginas de autenticación
- * Componente presentacional que proporciona estructura visual consistente
- * 
- * Props:
- * - children: contenido del formulario
- * - title: título principal
- * - subtitle: subtítulo descriptivo
- */
-export const AuthLayout = ({ children, title, subtitle }) => {
+const AuthLayout = ({ children }) => {
   return (
-    <div className={styles['auth-container']}>
-      {/* Fondo decorativo con gradiente animado */}
-      <div className={styles['auth-background']}>
-        <div className={styles['auth-background__shape1']}></div>
-        <div className={styles['auth-background__shape2']}></div>
-      </div>
-
-      {/* Contenido principal */}
-      <div className={styles['auth-content']}>
-        {/* Logo y branding */}
-        <div className={styles['auth-branding']}>
-          <div className={styles['auth-logo']}>
-            <span className={styles['auth-logo__icon']}>⚖️</span>
-          </div>
-          <h1 className={styles['auth-title']}>Asesoría Legal IA</h1>
-          <p className={styles['auth-description']}>
-            Sistema de consulta del Código Penal Colombiano
+    <div className={styles.authContainer}>
+      <div className={styles.authCard}>
+        {/* Header */}
+        <div className={styles.authHeader}>
+          <div className={styles.authLogo}>⚖️</div>
+          <h1 className={styles.authTitle}>{APP_NAME}</h1>
+          <p className={styles.authSubtitle}>
+            {LEGAL_INFO.CODE_NAME}
           </p>
         </div>
 
-        {/* Card del formulario */}
-        <div className={styles['auth-card']}>
-          <div className={styles['auth-card__header']}>
-            <h2 className={styles['auth-card__title']}>{title}</h2>
-            {subtitle && (
-              <p className={styles['auth-card__subtitle']}>{subtitle}</p>
-            )}
-          </div>
-
-          <div className={styles['auth-card__body']}>
-            {children}
-          </div>
+        {/* Body - aquí va el formulario (LoginForm o RegisterForm) */}
+        <div className={styles.authBody}>
+          {children}
         </div>
 
         {/* Footer */}
-        <footer className={styles['auth-footer']}>
-          <p className={styles['auth-footer__text']}>
-            © 2025 Sistema de Asesoría Legal IA
+        <div className={styles.authFooter}>
+          <p className={styles.footerText}>
+            {LEGAL_INFO.COPYRIGHT}
           </p>
-        </footer>
+        </div>
       </div>
     </div>
   );
 };
+
+export default AuthLayout;

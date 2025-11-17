@@ -1,91 +1,149 @@
-import React, { useEffect } from 'react';
-import { AuthLayout } from './AuthLayout';
-import { Input } from '../common/Input';
-import { Button } from '../common/Button';
-import { useAuth } from '../../contexts/AuthContext';
+/**
+ * LoginForm.jsx
+ * Formulario de inicio de sesión
+ * Actualizado para usar constants.js
+ */
+
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useForm } from '../../hooks/useForm';
-import { validators } from '../../utils/validators';
+import { validateEmail, validateRequired } from '../../utils/validators';
+import Input from '../common/Input';
+import Button from '../common/Button';
+import Loading from '../common/Loading';
+import {
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES,
+  ROUTES,
+  AUTH_CONFIG
+} from '../../utils/constants';
 import styles from '../../styles/components/Auth.module.css';
 
-/**
- * Formulario de Login
- * Componente contenedor que maneja la lógica de autenticación
- * 
- * Props:
- * - onSwitchToRegister: callback para cambiar a registro
- */
-export const LoginForm = ({ onSwitchToRegister }) => {
-  // Context: Autenticación
-  const { login, error: authError, clearError } = useAuth();
-  
-  // Context: Notificaciones
-  const toast = useToast();
+const LoginForm = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const { showToast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
 
-  // Valores iniciales del formulario
-  const initialValues = {
-    email: '',
-    password: '',
+  // Configuración del formulario
+  const { values, errors, touched, handleChange, handleBlur, validateForm } = useForm({
+    initialValues: {
+      email: '',
+      password: '',
+      rememberMe: false
+    },
+    validations: {
+      email: [
+        { validator: validateRequired, message: ERROR_MESSAGES.REQUIRED_FIELD },
+        { validator: validateEmail, message: ERROR_MESSAGES.INVALID_EMAIL }
+      ],
+      password: [
+        { validator: validateRequired, message: ERROR_MESSAGES.REQUIRED_FIELD }
+      ]
+    }
+  });
+
+  // Handler para enviar formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Verificar si está bloqueado por intentos fallidos
+    if (isLocked) {
+      showToast(
+        `Demasiados intentos fallidos. Espera ${AUTH_CONFIG.LOCKOUT_DURATION_MINUTES} minutos.`,
+        'error'
+      );
+      return;
+    }
+
+    // Validar formulario
+    const formErrors = validateForm();
+    if (Object.keys(formErrors).length > 0) {
+      showToast('Por favor, corrige los errores en el formulario', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Intentar login
+      await login(values.email, values.password, values.rememberMe);
+      
+      // Login exitoso
+      showToast(SUCCESS_MESSAGES.LOGIN_SUCCESS, 'success');
+      setLoginAttempts(0);
+      
+      // Redirigir al chat
+      setTimeout(() => {
+      navigate(ROUTES.CHAT);
+      }, 300);
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsLoading(false);
+      
+      // Incrementar intentos fallidos
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      // Verificar si se alcanzó el máximo de intentos
+      if (newAttempts >= AUTH_CONFIG.MAX_LOGIN_ATTEMPTS) {
+        setIsLocked(true);
+        showToast(
+          `Demasiados intentos fallidos. Cuenta bloqueada por ${AUTH_CONFIG.LOCKOUT_DURATION_MINUTES} minutos.`,
+          'error'
+        );
+        
+        // Desbloquear después del tiempo configurado
+        setTimeout(() => {
+          setIsLocked(false);
+          setLoginAttempts(0);
+        }, AUTH_CONFIG.LOCKOUT_DURATION_MINUTES * 60 * 1000);
+      } else {
+        // Mostrar error específico
+        const errorMessage = error.response?.data?.detail || 
+                           error.message || 
+                           ERROR_MESSAGES.INVALID_CREDENTIALS;
+        showToast(errorMessage, 'error');
+        
+        // Mostrar intentos restantes
+        const attemptsLeft = AUTH_CONFIG.MAX_LOGIN_ATTEMPTS - newAttempts;
+        if (attemptsLeft > 0 && attemptsLeft <= 3) {
+          showToast(
+            `Intentos restantes: ${attemptsLeft}`,
+            'warning'
+          );
+        }
+      }
+    }
   };
 
-  // Reglas de validación por campo
-  const validationRules = {
-    email: [validators.required, validators.email],
-    password: [validators.required, validators.minLength(6)],
+  // Toggle mostrar contraseña
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
-
-  // Custom hook: Gestión del formulario
-  const {
-    values,
-    errors,
-    isSubmitting,
-    handleChange,
-    handleBlur,
-    handleSubmit,
-    hasError,
-  } = useForm(initialValues, validationRules, onSubmit);
-
-  /**
-   * Función de submit del formulario
-   */
-  async function onSubmit(formValues) {
-    const result = await login(formValues.email, formValues.password);
-
-    if (result.success) {
-      toast.success('¡Bienvenido de nuevo!');
-    } else {
-      toast.error(result.error || 'Error al iniciar sesión');
-    }
-  }
-
-  /**
-   * useEffect: Limpiar errores del contexto al desmontar
-   * Cleanup function para evitar fugas de memoria
-   */
-  useEffect(() => {
-    return () => {
-      clearError();
-    };
-  }, [clearError]);
-
-  /**
-   * useEffect: Mostrar errores del contexto de auth
-   * Se ejecuta cuando cambia authError
-   */
-  useEffect(() => {
-    if (authError) {
-      toast.error(authError);
-    }
-  }, [authError, toast]);
 
   return (
-    <AuthLayout
-      title="Iniciar Sesión"
-      subtitle="Accede a tu cuenta para comenzar"
-    >
-      <div className={styles['auth-form']}>
-        {/* Email Input */}
+    <div className={styles.authForm}>
+      {/* Header */}
+      <div className={styles.authHeader}>
+        <div className={styles.authIcon}>⚖️</div>
+        <h2 className={styles.authTitle}>Iniciar Sesión</h2>
+        <p className={styles.authSubtitle}>
+          Accede a tu cuenta para comenzar a consultar
+        </p>
+      </div>
+
+      {/* Formulario */}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Email */}
         <Input
+          id="email"
           name="email"
           type="email"
           label="Correo Electrónico"
@@ -93,71 +151,110 @@ export const LoginForm = ({ onSwitchToRegister }) => {
           value={values.email}
           onChange={handleChange}
           onBlur={handleBlur}
-          error={hasError('email') ? errors.email : null}
+          error={touched.email && errors.email}
+          disabled={isLoading || isLocked}
           required
-          icon={<span>📧</span>}
           autoComplete="email"
+          autoFocus
         />
 
-        {/* Password Input */}
-        <Input
-          name="password"
-          type="password"
-          label="Contraseña"
-          placeholder="••••••••"
-          value={values.password}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          error={hasError('password') ? errors.password : null}
-          required
-          icon={<span>🔒</span>}
-          autoComplete="current-password"
-        />
-
-        {/* Forgot Password Link */}
-        <div className={styles['auth-form__link-container']}>
+        {/* Password */}
+        <div className={styles.passwordField}>
+          <Input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            label="Contraseña"
+            placeholder="••••••••"
+            value={values.password}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={touched.password && errors.password}
+            disabled={isLoading || isLocked}
+            required
+            autoComplete="current-password"
+          />
+          
           <button
             type="button"
-            className={styles['auth-form__link']}
-            onClick={() => toast.info('Funcionalidad en desarrollo')}
+            onClick={togglePasswordVisibility}
+            className={styles.passwordToggle}
+            disabled={isLoading || isLocked}
+            tabIndex="-1"
           >
-            ¿Olvidaste tu contraseña?
+            {showPassword ? '👁️' : '👁️‍🗨️'}
           </button>
         </div>
 
-        {/* Submit Button */}
+        {/* Opciones adicionales */}
+        <div className={styles.formOptions}>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              name="rememberMe"
+              checked={values.rememberMe}
+              onChange={handleChange}
+              disabled={isLoading || isLocked}
+              className={styles.checkbox}
+            />
+            <span>Recordarme</span>
+          </label>
+
+          <Link 
+            to="/forgot-password" 
+            className={styles.forgotPassword}
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
+        {/* Botón de submit */}
         <Button
           type="submit"
           variant="primary"
-          size="lg"
           fullWidth
-          loading={isSubmitting}
-          onClick={handleSubmit}
+          disabled={isLoading || isLocked}
+          className={styles.submitButton}
         >
-          {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+          {isLoading ? (
+            <Loading size="small" text="Iniciando sesión..." />
+          ) : isLocked ? (
+            'Cuenta bloqueada'
+          ) : (
+            'Iniciar Sesión'
+          )}
         </Button>
 
-        {/* Divider */}
-        <div className={styles['auth-divider']}>
-          <span className={styles['auth-divider__line']}></span>
-          <span className={styles['auth-divider__text']}>o</span>
-          <span className={styles['auth-divider__line']}></span>
-        </div>
+        {/* Indicador de intentos */}
+        {loginAttempts > 0 && loginAttempts < AUTH_CONFIG.MAX_LOGIN_ATTEMPTS && (
+          <div className={styles.warningMessage}>
+            ⚠️ Intentos fallidos: {loginAttempts}/{AUTH_CONFIG.MAX_LOGIN_ATTEMPTS}
+          </div>
+        )}
 
-        {/* Switch to Register */}
-        <div className={styles['auth-form__switch']}>
-          <p className={styles['auth-form__switch-text']}>
+        {/* Link a registro */}
+        <div className={styles.formFooter}>
+          <p className={styles.footerText}>
             ¿No tienes una cuenta?{' '}
-            <button
-              type="button"
-              className={styles['auth-form__switch-link']}
-              onClick={onSwitchToRegister}
-            >
+            <Link to={ROUTES.REGISTER} className={styles.footerLink}>
               Regístrate aquí
-            </button>
+            </Link>
           </p>
         </div>
-      </div>
-    </AuthLayout>
+      </form>
+
+      {/* Demo credentials (solo en desarrollo) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className={styles.demoCredentials}>
+          <p className={styles.demoTitle}>🔧 Demo Credentials:</p>
+          <p className={styles.demoText}>
+            Email: demo@legal.com<br />
+            Password: demo123
+          </p>
+        </div>
+      )}
+    </div>
   );
 };
+
+export default LoginForm;

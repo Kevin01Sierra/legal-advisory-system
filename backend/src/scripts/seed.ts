@@ -294,7 +294,7 @@ async function main() {
     console.log('\n📌 Próximos pasos:');
     console.log('   1. Backend:  npm run start:dev');
     console.log('   2. Frontend: cd ../frontend && npm run dev');
-    console.log('   3. Abrir:    http://localhost:5173\n');
+    console.log('   3. Abrir:    http://localhost:3000\n');
 
   } catch (error) {
     console.error('\n❌ ERROR:', error.message);

@@ -1,151 +1,203 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+/**
+ * App.jsx
+ * Componente principal de la aplicación
+ * CORREGIDO: Providers en el orden correcto
+ */
+
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './hooks/useToast';
 import { useAuth } from './hooks/useAuth';
-
-// Layouts
-import Layout from './components/layout/Layout';
+import { useToast } from './hooks/useToast';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { ToastContainer } from './components/common/Toast';
 import AuthLayout from './components/auth/AuthLayout';
-
-// Pages
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
+import Layout from './components/layout/Layout';
 import ChatInterface from './components/chat/ChatInterface';
-
-// Error Boundary
-import ErrorBoundary from './components/common/ErrorBoundary';
-
-// Estilos globales
+import { 
+  ROUTES, 
+  APP_NAME,
+  DEBUG 
+} from './utils/constants';
 import './styles/index.css';
 
-// Componente para rutas protegidas
+// Componente de ruta protegida
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="loading-screen">
-        <div className="spinner"></div>
-        <p>Cargando...</p>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div>Cargando...</div>
       </div>
     );
   }
 
-  return user ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  return children;
 };
 
-// Componente para rutas públicas (solo accesibles sin autenticación)
+// Componente de ruta pública (solo para no autenticados)
 const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="loading-screen">
-        <div className="spinner"></div>
-        <p>Cargando...</p>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div>Cargando...</div>
       </div>
     );
   }
 
-  return !user ? children : <Navigate to="/chat" replace />;
+  if (isAuthenticated) {
+    return <Navigate to={ROUTES.CHAT} replace />;
+  }
+
+  return children;
 };
 
-// Componente principal de rutas
+// Componente principal de rutas (AHORA PUEDE USAR useToast)
 const AppRoutes = () => {
+  const { toasts, removeToast } = useToast();
+
   return (
-    <Routes>
-      {/* Rutas públicas */}
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <AuthLayout>
-              <LoginForm />
-            </AuthLayout>
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <AuthLayout>
-              <RegisterForm />
-            </AuthLayout>
-          </PublicRoute>
-        }
-      />
+    <>
+      <Routes>
+        {/* Ruta raíz - redirige según autenticación */}
+        <Route 
+          path={ROUTES.HOME} 
+          element={<Navigate to={ROUTES.LOGIN} replace />} 
+        />
 
-      {/* Rutas protegidas */}
-      <Route
-        path="/chat"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <ChatInterface />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+        {/* Rutas públicas (Auth) */}
+        <Route
+          path={ROUTES.LOGIN}
+          element={
+            <PublicRoute>
+              <AuthLayout>
+                <LoginForm />
+              </AuthLayout>
+            </PublicRoute>
+          }
+        />
 
-      {/* Ruta raíz - redirige según autenticación */}
-      <Route
-        path="/"
-        element={<RootRedirect />}
-      />
+        <Route
+          path={ROUTES.REGISTER}
+          element={
+            <PublicRoute>
+              <AuthLayout>
+                <RegisterForm />
+              </AuthLayout>
+            </PublicRoute>
+          }
+        />
 
-      {/* Ruta 404 */}
-      <Route
-        path="*"
-        element={<NotFound />}
+        {/* Rutas protegidas */}
+        <Route
+          path={ROUTES.CHAT}
+          element={
+            <ProtectedRoute>
+              <ChatProvider>
+                <Layout>
+                  <ChatInterface />
+                </Layout>
+              </ChatProvider>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Ruta 404 */}
+        <Route
+          path={ROUTES.NOT_FOUND}
+          element={
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+              textAlign: 'center'
+            }}>
+              <h1 style={{ fontSize: '4rem', margin: '0' }}>404</h1>
+              <p style={{ fontSize: '1.5rem', margin: '1rem 0' }}>
+                Página no encontrada
+              </p>
+              <a 
+                href={ROUTES.HOME}
+                style={{
+                  marginTop: '2rem',
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '0.5rem'
+                }}
+              >
+                Volver al inicio
+              </a>
+            </div>
+          }
+        />
+      </Routes>
+
+      {/* Contenedor de Toasts */}
+      <ToastContainer 
+        toasts={toasts} 
+        onRemove={removeToast} 
       />
-    </Routes>
+    </>
   );
 };
 
-// Componente para redirección desde raíz
-const RootRedirect = () => {
-  const { user, loading } = useAuth();
+// Componente App principal
+const App = () => {
+  useEffect(() => {
+    // Establecer título de la página
+    document.title = APP_NAME;
 
-  if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="spinner"></div>
-        <p>Cargando...</p>
-      </div>
-    );
-  }
+    // Log de inicio en desarrollo
+    if (DEBUG.ENABLED) {
+      console.log(`🚀 ${APP_NAME} iniciado en modo desarrollo`);
+      console.log('Debug habilitado:', DEBUG);
+    }
 
-  return <Navigate to={user ? '/chat' : '/login'} replace />;
-};
+    // Cleanup
+    return () => {
+      if (DEBUG.ENABLED) {
+        console.log('App desmontada');
+      }
+    };
+  }, []);
 
-// Componente 404
-const NotFound = () => {
-  return (
-    <div className="not-found">
-      <h1>404</h1>
-      <p>Página no encontrada</p>
-      <a href="/">Volver al inicio</a>
-    </div>
-  );
-};
-
-// Componente principal de la aplicación
-function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <AuthProvider>
-          <ToastProvider>
-            <ChatProvider>
-              <AppRoutes />
-            </ChatProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </Router>
+      <BrowserRouter>
+        {/* ORDEN CORRECTO DE PROVIDERS */}
+        <ToastProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
-}
+};
 
 export default App;

@@ -18,7 +18,7 @@ import styles from '../../styles/components/Common.module.css';
  * - icon: ReactNode (icono opcional)
  * - helperText: texto de ayuda
  */
-export const Input = ({
+const Input = ({
   label,
   name,
   type = 'text',
@@ -117,3 +117,5 @@ export const Input = ({
     </div>
   );
 };
+
+export default Input;

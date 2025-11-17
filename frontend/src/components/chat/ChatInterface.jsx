@@ -1,180 +1,169 @@
-import { useState, useEffect, useRef } from 'react';
+/**
+ * ChatInterface.jsx
+ * Componente principal de la interfaz de chat
+ * FINAL: Crea conversación localmente, el backend la crea al enviar primer mensaje
+ */
+
+import React, { useEffect, useRef } from 'react';
 import { useChat } from '../../hooks/useChat';
-import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import Loading from '../common/Loading';
+import { 
+  CHAT_CONFIG, 
+  ERROR_MESSAGES,
+  INITIAL_SUGGESTIONS 
+} from '../../utils/constants';
 import styles from '../../styles/components/Chat.module.css';
 
 const ChatInterface = () => {
-  const { user } = useAuth();
-  const {
-    conversations,
+  const { 
     currentConversation,
     messages,
     loading,
-    error,
     createConversation,
-    loadConversation,
     sendMessage,
-    clearError
+    error: chatError
   } = useChat();
-
-  const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  
+  const { showToast } = useToast();
   const messagesEndRef = useRef(null);
+  const hasInitialized = useRef(false);
 
-  // Auto-scroll al último mensaje
+  // ✅ Crear conversación LOCAL (no hace POST, solo habilita el chat)
+  useEffect(() => {
+    if (!currentConversation && !loading && !hasInitialized.current) {
+      hasInitialized.current = true;
+      console.log('✅ Habilitando chat - conversación se creará al enviar primer mensaje');
+      createConversation('Nueva Consulta Legal');
+    }
+  }, [currentConversation, loading, createConversation]);
+
+  // Auto-scroll al final de los mensajes
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, CHAT_CONFIG.AUTO_SCROLL_DELAY);
   };
 
+  // Auto-scroll cuando llegan nuevos mensajes
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
   }, [messages]);
 
-  // Crear conversación inicial si no existe
+  // Mostrar errores del chat
   useEffect(() => {
-    if (!currentConversation && !loading) {
-      handleNewConversation();
+    if (chatError) {
+      showToast(chatError, 'error');
     }
-  }, []);
+  }, [chatError, showToast]);
 
-  const handleNewConversation = async () => {
+  // Handler para enviar mensaje
+  const handleSendMessage = async (content) => {
+    if (!content || content.trim().length === 0) {
+      showToast(ERROR_MESSAGES.MESSAGE_EMPTY, 'error');
+      return;
+    }
+
+    if (content.length > CHAT_CONFIG.MAX_MESSAGE_LENGTH) {
+      showToast(ERROR_MESSAGES.MESSAGE_TOO_LONG, 'error');
+      return;
+    }
+
     try {
-      await createConversation('Nueva consulta legal');
-    } catch (err) {
-      console.error('Error creando conversación:', err);
+      console.log('📤 Enviando mensaje:', content);
+      console.log('🔑 Conversation ID:', currentConversation?.id);
+      
+      // Enviar mensaje (conversationId puede ser null para primera vez)
+      await sendMessage(currentConversation?.id || null, content);
+      
+      scrollToBottom();
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      showToast(
+        error.message || ERROR_MESSAGES.UNKNOWN_ERROR, 
+        'error'
+      );
     }
   };
 
-  const handleSendMessage = async (text) => {
-    if (!text.trim() || !currentConversation) return;
-
-    setInputValue('');
-    setIsTyping(true);
-
-    try {
-      await sendMessage(currentConversation.id, text.trim());
-    } catch (err) {
-      console.error('Error enviando mensaje:', err);
-    } finally {
-      setIsTyping(false);
-    }
+  // Handler para sugerencias iniciales
+  const handleSuggestionClick = (query) => {
+    handleSendMessage(query);
   };
 
-  const handleSelectConversation = async (conversationId) => {
-    try {
-      await loadConversation(conversationId);
-    } catch (err) {
-      console.error('Error cargando conversación:', err);
-    }
-  };
-
-  if (!user) {
+  // Vista vacía inicial
+  if (!currentConversation) {
     return (
-      <div className={styles.chatContainer}>
-        <div className={styles.emptyState}>
-          <h2>Bienvenido al Sistema de Asesoría Legal</h2>
-          <p>Por favor, inicia sesión para comenzar a consultar sobre el Código Penal Colombiano.</p>
+      <div className={styles.chatEmpty}>
+        <div className={styles.emptyContent}>
+          <Loading size="medium" text="Preparando chat..." />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.chatContainer}>
-      <ChatHeader
-        currentConversation={currentConversation}
-        conversations={conversations}
-        onNewConversation={handleNewConversation}
-        onSelectConversation={handleSelectConversation}
-        userName={user.name}
-      />
+    <div className={styles.chatInterface}>
+      {/* Header del chat */}
+      <ChatHeader conversation={currentConversation} />
 
-      <div className={styles.chatContent}>
-        {loading && !messages.length ? (
-          <div className={styles.loadingContainer}>
-            <Loading />
-            <p>Cargando conversación...</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className={styles.emptyState}>
+      {/* Área de mensajes */}
+      <div className={styles.chatMessages}>
+        {messages.length === 0 && !loading ? (
+          // Vista inicial con sugerencias
+          <div className={styles.initialView}>
             <div className={styles.welcomeMessage}>
-              <h2>👋 ¡Hola, {user.name}!</h2>
-              <p className={styles.subtitle}>
-                Soy tu asistente legal especializado en el Código Penal Colombiano (Ley 599 de 2000)
-              </p>
-              
-              <div className={styles.suggestions}>
-                <h3>Puedes preguntarme sobre:</h3>
-                <div className={styles.suggestionCards}>
-                  <button
-                    className={styles.suggestionCard}
-                    onClick={() => handleSendMessage('¿Qué pena tiene el hurto calificado?')}
-                  >
-                    <span className={styles.icon}>⚖️</span>
-                    <span>Penas y sanciones</span>
-                  </button>
-                  <button
-                    className={styles.suggestionCard}
-                    onClick={() => handleSendMessage('¿Cuáles son las circunstancias agravantes del homicidio?')}
-                  >
-                    <span className={styles.icon}>📋</span>
-                    <span>Circunstancias agravantes</span>
-                  </button>
-                  <button
-                    className={styles.suggestionCard}
-                    onClick={() => handleSendMessage('Explícame qué es la legítima defensa')}
-                  >
-                    <span className={styles.icon}>🛡️</span>
-                    <span>Conceptos legales</span>
-                  </button>
-                  <button
-                    className={styles.suggestionCard}
-                    onClick={() => handleSendMessage('¿Qué delitos son contra la vida?')}
-                  >
-                    <span className={styles.icon}>📚</span>
-                    <span>Tipos de delitos</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.disclaimer}>
-                <p>
-                  <strong>Nota importante:</strong> Este sistema proporciona información educativa 
-                  basada en el Código Penal colombiano. No constituye asesoría legal profesional.
-                </p>
-              </div>
+              <h3>¿En qué puedo ayudarte hoy?</h3>
+              <p>Selecciona una pregunta o escribe tu consulta legal</p>
+            </div>
+            
+            <div className={styles.suggestions}>
+              {INITIAL_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  className={styles.suggestionCard}
+                  onClick={() => handleSuggestionClick(suggestion.query)}
+                  disabled={loading}
+                >
+                  <span className={styles.suggestionIcon}>
+                    {suggestion.icon}
+                  </span>
+                  <span className={styles.suggestionTitle}>
+                    {suggestion.title}
+                  </span>
+                  <span className={styles.suggestionQuery}>
+                    {suggestion.query}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         ) : (
-          <MessageList
-            messages={messages}
-            isTyping={isTyping}
-            messagesEndRef={messagesEndRef}
-          />
+          // Lista de mensajes
+          <>
+            <MessageList messages={messages} />
+            <div ref={messagesEndRef} />
+          </>
         )}
 
-        {error && (
-          <div className={styles.errorBanner}>
-            <span>{error}</span>
-            <button onClick={clearError} className={styles.closeError}>×</button>
+        {/* Indicador de carga */}
+        {loading && (
+          <div className={styles.loadingContainer}>
+            <Loading size="small" text="Pensando..." />
           </div>
         )}
       </div>
 
+      {/* Input de chat */}
       <ChatInput
-        value={inputValue}
-        onChange={setInputValue}
-        onSend={handleSendMessage}
-        disabled={loading || isTyping || !currentConversation}
-        placeholder={
-          !currentConversation
-            ? 'Creando conversación...'
-            : 'Escribe tu consulta sobre el Código Penal...'
-        }
+        onSendMessage={handleSendMessage}
+        disabled={loading}
+        maxLength={CHAT_CONFIG.MAX_MESSAGE_LENGTH}
       />
     </div>
   );

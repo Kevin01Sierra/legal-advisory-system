@@ -1,72 +1,118 @@
-import React, { useEffect } from 'react';
-import { useToast } from '../../hooks/useToast';
+/**
+ * Toast.jsx
+ * Componente de notificaciones toast
+ * Actualizado para usar constants.js
+ */
+
+import React, { useEffect, useState } from 'react';
+import { 
+  TOAST_TYPES, 
+  TOAST_DURATION 
+} from '../../utils/constants';
 import styles from '../../styles/components/Common.module.css';
 
-/**
- * Contenedor de Toasts
- */
-export const ToastContainer = () => {
-  const { toasts } = useToast();
+const Toast = ({ 
+  message, 
+  type = TOAST_TYPES.INFO, 
+  duration = TOAST_DURATION.MEDIUM,
+  onClose 
+}) => {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // Auto-cerrar después de la duración especificada
+    const timer = setTimeout(() => {
+      handleClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration]);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      if (onClose) onClose();
+    }, 300); // Duración de la animación de salida
+  };
+
+  if (!isVisible) return null;
+
+  // Configuración de iconos y colores según el tipo
+  const toastConfig = {
+    [TOAST_TYPES.SUCCESS]: {
+      icon: '✓',
+      className: styles.toastSuccess
+    },
+    [TOAST_TYPES.ERROR]: {
+      icon: '✕',
+      className: styles.toastError
+    },
+    [TOAST_TYPES.WARNING]: {
+      icon: '⚠',
+      className: styles.toastWarning
+    },
+    [TOAST_TYPES.INFO]: {
+      icon: 'ℹ',
+      className: styles.toastInfo
+    }
+  };
+
+  const config = toastConfig[type] || toastConfig[TOAST_TYPES.INFO];
 
   return (
-    <div className={styles['toast-container']}>
+    <div 
+      className={`${styles.toast} ${config.className} ${
+        isExiting ? styles.toastExit : styles.toastEnter
+      }`}
+      role="alert"
+      aria-live="polite"
+    >
+      <div className={styles.toastIcon}>
+        {config.icon}
+      </div>
+      
+      <div className={styles.toastContent}>
+        <p className={styles.toastMessage}>{message}</p>
+      </div>
+
+      <button
+        onClick={handleClose}
+        className={styles.toastClose}
+        aria-label="Cerrar notificación"
+      >
+        ×
+      </button>
+
+      {/* Barra de progreso */}
+      <div 
+        className={styles.toastProgress}
+        style={{ 
+          animationDuration: `${duration}ms` 
+        }}
+      />
+    </div>
+  );
+};
+
+// Componente contenedor para múltiples toasts
+export const ToastContainer = ({ toasts, onRemove }) => {
+  if (!toasts || toasts.length === 0) return null;
+
+  return (
+    <div className={styles.toastContainer}>
       {toasts.map((toast) => (
-        <Toast key={toast.id} {...toast} />
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => onRemove(toast.id)}
+        />
       ))}
     </div>
   );
 };
 
-/**
- * Toast individual
- */
-const Toast = ({ id, message, type, duration }) => {
-  const { removeToast } = useToast();
-
-  // useEffect: Animación de entrada
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Agregar clase de salida antes de remover
-      const element = document.getElementById(`toast-${id}`);
-      if (element) {
-        element.classList.add(styles['toast--exit']);
-      }
-    }, duration - 300);
-
-    return () => clearTimeout(timer);
-  }, [id, duration]);
-
-  // Iconos según tipo
-  const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️',
-  };
-
-  const handleClose = () => {
-    const element = document.getElementById(`toast-${id}`);
-    if (element) {
-      element.classList.add(styles['toast--exit']);
-      setTimeout(() => removeToast(id), 300);
-    }
-  };
-
-  return (
-    <div
-      id={`toast-${id}`}
-      className={`${styles.toast} ${styles[`toast--${type}`]}`}
-      role="alert"
-    >
-      <span className={styles['toast__icon']}>{icons[type]}</span>
-      <p className={styles['toast__message']}>{message}</p>
-      <button
-        className={styles['toast__close']}
-        onClick={handleClose}
-        aria-label="Cerrar notificación"
-      >
-        ×
-      </button>
-    </div>
-  );
-};
+export default Toast;

@@ -10,7 +10,7 @@ import styles from '../../styles/components/Common.module.css';
  * - fullscreen: boolean (overlay de pantalla completa)
  * - text: mensaje opcional
  */
-export const Loading = ({
+const Loading = ({
   variant = 'spinner',
   size = 'md',
   fullscreen = false,
@@ -101,3 +101,5 @@ const SkeletonLoader = () => (
     <div className={styles['skeleton-loader__line']}></div>
   </div>
 );
+
+export default Loading;

@@ -1,83 +1,146 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import { createContext, useState, useCallback, useEffect } from 'react';
 import { chatService } from '../services/chatService';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../hooks/useAuth';
+import { 
+  ERROR_MESSAGES, 
+  MESSAGE_ROLES, 
+  CHAT_CONFIG,
+  STORAGE_KEYS 
+} from '../utils/constants';
 
 /**
  * Context para el chat
  * Maneja conversaciones y mensajes
  */
-const ChatContext = createContext(undefined);
+export const ChatContext = createContext(undefined);
 
 export const ChatProvider = ({ children }) => {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Estados independientes para diferentes propósitos
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [currentConversation, setCurrentConversation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   /**
+   * useEffect: Cargar conversaciones al montar si hay autenticación
+   */
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadConversations();
+      loadLastConversation();
+    }
+  }, [isAuthenticated]);
+
+  /**
+   * Cargar última conversación desde localStorage
+   */
+  const loadLastConversation = useCallback(() => {
+    const lastConvId = localStorage.getItem(STORAGE_KEYS.LAST_CONVERSATION);
+    if (lastConvId) {
+      loadConversation(lastConvId);
+    }
+  }, []);
+
+  /**
    * Estado inmutable: Agregar mensaje usando función setter
-   * Usa el estado anterior para garantizar inmutabilidad
    */
   const addMessage = useCallback((message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
   }, []);
 
   /**
-   * Enviar consulta al backend
+   * Crear nueva conversación (NO-OP - el backend la crea automáticamente)
+   * Esta función solo establece un estado temporal para habilitar el chat
    */
-  const sendQuery = useCallback(
-    async (query) => {
-      if (!query.trim() || loading) return;
+  const createConversation = useCallback(async (title = 'Nueva consulta legal') => {
+    console.log('ℹ️ Conversación se creará automáticamente al enviar primer mensaje');
+    
+    // Establecer una "conversación temporal" para habilitar el input
+    setCurrentConversation({ id: null, titulo: title });
+    setMessages([]);
+    setError(null);
+    
+    return { success: true, data: { id: null, titulo: title } };
+  }, []);
+
+  /**
+   * Enviar mensaje en una conversación
+   * Si conversationId es null, el backend crea una nueva conversación automáticamente
+   */
+  const sendMessage = useCallback(
+    async (conversationId, query) => {
+      // Validaciones
+      if (!query?.trim()) {
+        setError(ERROR_MESSAGES.MESSAGE_EMPTY);
+        return { success: false, error: ERROR_MESSAGES.MESSAGE_EMPTY };
+      }
+
+      if (query.length > CHAT_CONFIG.MAX_MESSAGE_LENGTH) {
+        setError(ERROR_MESSAGES.MESSAGE_TOO_LONG);
+        return { success: false, error: ERROR_MESSAGES.MESSAGE_TOO_LONG };
+      }
+
+      if (loading) {
+        return { success: false, error: 'Ya hay una consulta en proceso' };
+      }
 
       try {
         setLoading(true);
         setError(null);
 
-        // Agregar mensaje del usuario inmediatamente
+        // Agregar mensaje del usuario inmediatamente (optimistic update)
         const userMessage = {
-          role: 'user',
+          id: `temp-${Date.now()}`,
+          role: MESSAGE_ROLES.USER,
           content: query,
-          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         };
         addMessage(userMessage);
 
-        // Llamar al servicio
-        const response = await chatService.sendQuery(
-          query,
-          currentConversationId,
-          token
-        );
+        // Enviar query (conversationId puede ser null para crear nueva)
+        console.log('📤 Enviando mensaje con conversationId:', conversationId);
+        const response = await chatService.sendQuery(query, conversationId);
 
-        // Actualizar ID de conversación si es nueva
-        if (!currentConversationId && response.conversationId) {
-          setCurrentConversationId(response.conversationId);
+        console.log('✅ Respuesta del backend:', response);
+
+        // Si se creó una conversación nueva, actualizar el estado
+        if (response.conversationId && conversationId === null) {
+          console.log('🆕 Nueva conversación creada:', response.conversationId);
+          setCurrentConversation({
+            id: response.conversationId,
+            titulo: query.substring(0, 100),
+          });
+          // Guardar como última conversación
+          localStorage.setItem(STORAGE_KEYS.LAST_CONVERSATION, response.conversationId);
         }
 
         // Agregar respuesta del asistente
         const assistantMessage = {
-          role: 'assistant',
+          id: response.messageId || `msg-${Date.now()}`,
+          role: MESSAGE_ROLES.ASSISTANT,
           content: response.response,
-          articulos: response.articulosCitados,
-          metadata: response.metadata,
-          timestamp: new Date().toISOString(),
+          articles: response.articulosCitados || [],
+          metadata: response.metadata || {},
+          createdAt: new Date().toISOString(),
         };
         addMessage(assistantMessage);
 
         return { success: true, data: response };
       } catch (err) {
-        const errorMessage = err.message || 'Error al enviar el mensaje';
+        console.error('❌ Error al enviar mensaje:', err);
+        const errorMessage = err.message || ERROR_MESSAGES.UNKNOWN_ERROR;
         setError(errorMessage);
 
         // Agregar mensaje de error
         const errorMsg = {
-          role: 'assistant',
+          id: `error-${Date.now()}`,
+          role: MESSAGE_ROLES.ASSISTANT,
           content: 'Lo siento, ocurrió un error al procesar tu consulta. Por favor, intenta de nuevo.',
           error: true,
-          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         };
         addMessage(errorMsg);
 
@@ -86,7 +149,7 @@ export const ChatProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [currentConversationId, loading, token, addMessage]
+    [loading, addMessage]
   );
 
   /**
@@ -94,20 +157,76 @@ export const ChatProvider = ({ children }) => {
    */
   const loadConversations = useCallback(async () => {
     try {
-      const data = await chatService.getConversations(token);
-      setConversations(data);
+      const data = await chatService.getConversations();
+      
+      // Limitar el número de conversaciones mostradas
+      const limitedConversations = data.slice(0, CHAT_CONFIG.MAX_CONVERSATIONS_DISPLAY);
+      setConversations(limitedConversations);
+      
+      return { success: true, data: limitedConversations };
     } catch (err) {
       console.error('Error al cargar conversaciones:', err);
+      return { success: false, error: err.message };
     }
-  }, [token]);
+  }, []);
 
   /**
-   * Crear nueva conversación
+   * Cargar una conversación específica con su historial
+   */
+  const loadConversation = useCallback(async (conversationId) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await chatService.getConversationHistory(conversationId);
+      
+      setCurrentConversation(data);
+      setMessages(data.messages || []);
+      
+      // Guardar como última conversación
+      localStorage.setItem(STORAGE_KEYS.LAST_CONVERSATION, conversationId);
+
+      return { success: true, data };
+    } catch (err) {
+      const errorMessage = err.message || ERROR_MESSAGES.CONVERSATION_NOT_FOUND;
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Eliminar conversación
+   */
+  const deleteConversation = useCallback(async (conversationId) => {
+    try {
+      await chatService.deleteConversation(conversationId);
+      
+      // Eliminar de la lista
+      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      
+      // Si es la conversación actual, limpiar
+      if (currentConversation?.id === conversationId) {
+        setCurrentConversation(null);
+        setMessages([]);
+        localStorage.removeItem(STORAGE_KEYS.LAST_CONVERSATION);
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, [currentConversation]);
+
+  /**
+   * Crear nueva conversación (limpiar estado)
    */
   const newConversation = useCallback(() => {
     setMessages([]);
-    setCurrentConversationId(null);
+    setCurrentConversation(null);
     setError(null);
+    localStorage.removeItem(STORAGE_KEYS.LAST_CONVERSATION);
   }, []);
 
   /**
@@ -120,27 +239,18 @@ export const ChatProvider = ({ children }) => {
   const value = {
     messages,
     conversations,
-    currentConversationId,
+    currentConversation,
     loading,
     error,
-    sendQuery,
+    // Funciones
+    createConversation,
+    sendMessage,
     loadConversations,
+    loadConversation,
+    deleteConversation,
     newConversation,
     clearError,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
-};
-
-/**
- * Hook personalizado para usar el ChatContext
- */
-export const useChat = () => {
-  const context = useContext(ChatContext);
-
-  if (context === undefined) {
-    throw new Error('useChat debe ser usado dentro de un ChatProvider');
-  }
-
-  return context;
 };

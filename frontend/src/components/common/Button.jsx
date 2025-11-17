@@ -15,7 +15,7 @@ import styles from '../../styles/components/Common.module.css';
  * - onClick: función callback
  * - type: 'button' | 'submit' | 'reset'
  */
-export const Button = ({
+const Button = ({
   children,
   variant = 'primary',
   size = 'md',
@@ -63,3 +63,5 @@ export const Button = ({
     </button>
   );
 };
+
+export default Button;

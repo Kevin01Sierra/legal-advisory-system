@@ -48,8 +48,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        nombre: user.nombre,
-        apellido: user.apellido,
+        name: user.name,
       },
       token,
     };
@@ -83,8 +82,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        nombre: user.nombre,
-        apellido: user.apellido,
+        name: user.name,
       },
       token,
     };

@@ -1,150 +1,183 @@
-import { useState, useCallback } from 'react';
-import { validateField } from '../utils/validators';
-
 /**
- * Hook personalizado para gestión de formularios
- * Incluye validación, manejo de errores y estados
- * 
- * @param {Object} initialValues - Valores iniciales del formulario
- * @param {Object} validationRules - Reglas de validación por campo
- * @param {Function} onSubmit - Callback al enviar el formulario
+ * useForm.js
+ * Hook personalizado para manejar formularios
+ * CORREGIDO: validateForm como función
  */
-export const useForm = (initialValues = {}, validationRules = {}, onSubmit) => {
-  // Estado del formulario (objeto con todos los campos)
+
+import { useState, useCallback } from 'react';
+
+export const useForm = ({ initialValues = {}, validations = {} }) => {
+  // Estado del formulario
   const [values, setValues] = useState(initialValues);
-
-  // Errores por campo
   const [errors, setErrors] = useState({});
-
-  // Estado de campos "tocados" (el usuario interactuó)
   const [touched, setTouched] = useState({});
 
-  // Estado de envío
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   /**
-   * Manejo de cambios en inputs (múltiples inputs con un solo handler)
-   * Usa e.target.name para identificar dinámicamente el campo
+   * Validar un campo individual
    */
-  const handleChange = useCallback(
-    (e) => {
-      const { name, value } = e.target;
+  const validateField = useCallback((name, value) => {
+    const fieldValidations = validations[name];
+    
+    if (!fieldValidations || fieldValidations.length === 0) {
+      return null;
+    }
 
-      // Actualizar valor usando estado anterior
-      setValues((prevValues) => ({
-        ...prevValues,
-        [name]: value,
-      }));
-
-      // Validar el campo si tiene reglas
-      if (validationRules[name]) {
-        const error = validateField(value, validationRules[name]);
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          [name]: error,
-        }));
+    // Si es un array de validaciones
+    if (Array.isArray(fieldValidations)) {
+      for (const validation of fieldValidations) {
+        // Si la validación es un objeto con validator y message
+        if (validation.validator) {
+          const error = validation.validator(value, values);
+          if (error !== null) {
+            return validation.message || error;
+          }
+        }
+        // Si es una función directa
+        else if (typeof validation === 'function') {
+          const error = validation(value, values);
+          if (error) {
+            return error;
+          }
+        }
       }
-    },
-    [validationRules]
-  );
+    }
+    // Si es una función directa
+    else if (typeof fieldValidations === 'function') {
+      return fieldValidations(value, values);
+    }
+
+    return null;
+  }, [validations, values]);
 
   /**
-   * Marcar campo como "tocado" al perder foco
+   * Validar todos los campos del formulario
    */
-  const handleBlur = useCallback((e) => {
-    const { name } = e.target;
-    setTouched((prevTouched) => ({
-      ...prevTouched,
-      [name]: true,
-    }));
-  }, []);
-
-  /**
-   * Validar todos los campos
-   */
-  const validateAll = useCallback(() => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
-    let isValid = true;
 
-    Object.keys(validationRules).forEach((fieldName) => {
-      const error = validateField(values[fieldName], validationRules[fieldName]);
+    Object.keys(validations).forEach((fieldName) => {
+      const value = values[fieldName];
+      const error = validateField(fieldName, value);
+      
       if (error) {
         newErrors[fieldName] = error;
-        isValid = false;
       }
     });
 
     setErrors(newErrors);
-    return isValid;
-  }, [values, validationRules]);
+    return newErrors;
+  }, [values, validations, validateField]);
 
   /**
-   * Enviar formulario
+   * Manejar cambios en los inputs
    */
-  const handleSubmit = useCallback(
-    async (e) => {
-      if (e) e.preventDefault();
+  const handleChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
 
-      // Marcar todos los campos como tocados
-      const allTouched = Object.keys(values).reduce((acc, key) => {
-        acc[key] = true;
-        return acc;
-      }, {});
-      setTouched(allTouched);
+    setValues((prev) => ({
+      ...prev,
+      [name]: newValue,
+    }));
 
-      // Validar
-      const isValid = validateAll();
-
-      if (!isValid) {
-        return;
-      }
-
-      // Ejecutar callback de submit
-      if (onSubmit) {
-        setIsSubmitting(true);
-        try {
-          await onSubmit(values);
-        } catch (error) {
-          console.error('Error en submit:', error);
-        } finally {
-          setIsSubmitting(false);
-        }
-      }
-    },
-    [values, validateAll, onSubmit]
-  );
+    // Validar en tiempo real si el campo ya fue tocado
+    if (touched[name]) {
+      const error = validateField(name, newValue);
+      setErrors((prev) => ({
+        ...prev,
+        [name]: error || undefined,
+      }));
+    }
+  }, [touched, validateField]);
 
   /**
-   * Resetear formulario
+   * Manejar blur (cuando el usuario sale del campo)
    */
-  const reset = useCallback(() => {
+  const handleBlur = useCallback((e) => {
+    const { name } = e.target;
+    
+    setTouched((prev) => ({
+      ...prev,
+      [name]: true,
+    }));
+
+    // Validar el campo cuando pierde el foco
+    const error = validateField(name, values[name]);
+    setErrors((prev) => ({
+      ...prev,
+      [name]: error || undefined,
+    }));
+  }, [values, validateField]);
+
+  /**
+   * Establecer un valor manualmente
+   */
+  const setValue = useCallback((name, value) => {
+    setValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }, []);
+
+  /**
+   * Establecer múltiples valores
+   */
+  const setFormValues = useCallback((newValues) => {
+    setValues((prev) => ({
+      ...prev,
+      ...newValues,
+    }));
+  }, []);
+
+  /**
+   * Establecer un error manualmente
+   */
+  const setError = useCallback((name, error) => {
+    setErrors((prev) => ({
+      ...prev,
+      [name]: error,
+    }));
+  }, []);
+
+  /**
+   * Limpiar errores
+   */
+  const clearErrors = useCallback(() => {
+    setErrors({});
+  }, []);
+
+  /**
+   * Resetear el formulario
+   */
+  const resetForm = useCallback(() => {
     setValues(initialValues);
     setErrors({});
     setTouched({});
-    setIsSubmitting(false);
   }, [initialValues]);
 
   /**
-   * Verificar si un campo tiene error visible
+   * Verificar si el formulario es válido
    */
-  const hasError = useCallback(
-    (fieldName) => {
-      return touched[fieldName] && errors[fieldName];
-    },
-    [touched, errors]
-  );
+  const isValid = useCallback(() => {
+    const formErrors = validateForm();
+    return Object.keys(formErrors).length === 0;
+  }, [validateForm]);
 
   return {
     values,
     errors,
     touched,
-    isSubmitting,
     handleChange,
     handleBlur,
-    handleSubmit,
-    reset,
-    hasError,
-    setValues,
-    setErrors,
+    setValue,
+    setFormValues,
+    setError,
+    clearErrors,
+    resetForm,
+    validateForm,
+    validateField,
+    isValid,
   };
 };
+
+export default useForm;

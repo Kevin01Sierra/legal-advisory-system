@@ -18,10 +18,7 @@ export class User {
   email: string;
 
   @Column({ length: 100 })
-  nombre: string;
-
-  @Column({ length: 100, nullable: true })
-  apellido: string;
+  name: string;
 
   @Exclude()
   @Column()

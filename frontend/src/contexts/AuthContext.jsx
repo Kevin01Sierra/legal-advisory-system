@@ -1,15 +1,19 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/authService';
+import { 
+  STORAGE_KEYS, 
+  ERROR_MESSAGES, 
+  SUCCESS_MESSAGES 
+} from '../utils/constants';
 
 /**
  * Context para la autenticación
  * Maneja el estado del usuario, token y operaciones de auth
  */
-const AuthContext = createContext(undefined);
+export const AuthContext = createContext(undefined);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,18 +24,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = () => {
       try {
-        const savedToken = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
+        const savedToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        const savedUser = localStorage.getItem(STORAGE_KEYS.USER_DATA);
 
         if (savedToken && savedUser) {
-          setToken(savedToken);
           setUser(JSON.parse(savedUser));
         }
       } catch (err) {
         console.error('Error al cargar datos de autenticación:', err);
         // Limpiar datos corruptos
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        authService.clearAuthData();
       } finally {
         setLoading(false);
       }
@@ -50,19 +52,20 @@ export const AuthProvider = ({ children }) => {
 
       const data = await authService.login(email, password);
 
-      // Guardar en localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Actualizar estado
-      setToken(data.token);
+      // authService.login ya guarda el token automáticamente
       setUser(data.user);
+      console.log('✅ Usuario logueado:', data.user);
+      console.log('✅ isAuthenticated:', authService.isAuthenticated());
 
-      return { success: true };
+      return { 
+        success: true, 
+        message: SUCCESS_MESSAGES.LOGIN_SUCCESS,
+        user: data.user
+      };
     } catch (err) {
-      const errorMessage = err.message || 'Error al iniciar sesión';
+      const errorMessage = err.message || ERROR_MESSAGES.INVALID_CREDENTIALS;
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -78,19 +81,20 @@ export const AuthProvider = ({ children }) => {
 
       const data = await authService.register(formData);
 
-      // Guardar en localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Actualizar estado
-      setToken(data.token);
+      // authService.register ya guarda el token automáticamente
       setUser(data.user);
 
-      return { success: true };
+      return { 
+        success: true, 
+        message: SUCCESS_MESSAGES.REGISTER_SUCCESS 
+      };
     } catch (err) {
-      const errorMessage = err.message || 'Error al registrarse';
+      const errorMessage = err.message || ERROR_MESSAGES.UNKNOWN_ERROR;
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      return { 
+        success: false, 
+        error: errorMessage 
+      };
     } finally {
       setLoading(false);
     }
@@ -99,12 +103,71 @@ export const AuthProvider = ({ children }) => {
   /**
    * useCallback: Logout - Limpiar estado y localStorage
    */
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    setError(null);
+  const logout = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Llamar al servicio de logout (limpia datos locales)
+      await authService.logout();
+      
+      // Limpiar estado
+      setUser(null);
+      setError(null);
+
+      return { 
+        success: true, 
+        message: SUCCESS_MESSAGES.LOGOUT_SUCCESS 
+      };
+    } catch (err) {
+      console.error('Error al cerrar sesión:', err);
+      
+      // Limpiar datos locales aunque falle
+      authService.clearAuthData();
+      setUser(null);
+      setError(null);
+
+      return { 
+        success: true, 
+        message: SUCCESS_MESSAGES.LOGOUT_SUCCESS 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
+   * useCallback: Verificar si la sesión es válida
+   */
+  const checkAuth = useCallback(async () => {
+    try {
+      if (!authService.isAuthenticated()) {
+        setUser(null);
+        return false;
+      }
+
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      return true;
+    } catch (err) {
+      console.error('Error al verificar autenticación:', err);
+      
+      // Si falla, limpiar sesión
+      authService.clearAuthData();
+      setUser(null);
+      
+      return false;
+    }
+  }, []);
+
+  /**
+   * useCallback: Actualizar datos del usuario
+   */
+  const updateUser = useCallback((updatedData) => {
+    setUser(prevUser => {
+      const newUser = { ...prevUser, ...updatedData };
+      localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(newUser));
+      return newUser;
+    });
   }, []);
 
   /**
@@ -117,29 +180,16 @@ export const AuthProvider = ({ children }) => {
   // Valor del contexto
   const value = {
     user,
-    token,
     loading,
     error,
-    isAuthenticated: !!token,
+    isAuthenticated: authService.isAuthenticated(),
     login,
     register,
     logout,
+    checkAuth,
+    updateUser,
     clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-/**
- * Hook personalizado para usar el AuthContext
- * Incluye validación para asegurar que se usa dentro del Provider
- */
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (context === undefined) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
-  }
-
-  return context;
 };

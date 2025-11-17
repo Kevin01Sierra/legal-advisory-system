@@ -1,82 +1,202 @@
-import { useState } from 'react';
+/**
+ * Message.jsx
+ * Componente para mostrar un mensaje individual en el chat
+ * Actualizado para usar constants.js
+ */
+
+import React, { useState } from 'react';
 import ArticleCard from './ArticleCard';
+import { 
+  MESSAGE_ROLES, 
+  MESSAGE_STATUS 
+} from '../../utils/constants';
 import styles from '../../styles/components/Chat.module.css';
 
 const Message = ({ message }) => {
-  const [showArticles, setShowArticles] = useState(true);
-  const isUser = message.role === 'user';
-  const hasArticles = message.metadata?.articles && message.metadata.articles.length > 0;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isUser = message.role === MESSAGE_ROLES.USER;
+  const isAssistant = message.role === MESSAGE_ROLES.ASSISTANT;
+  const isSystem = message.role === MESSAGE_ROLES.SYSTEM;
 
-  const formatTimestamp = (timestamp) => {
+  // Formatear timestamp
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('es-CO', {
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    return date.toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: 'short',
       hour: '2-digit',
       minute: '2-digit'
     });
   };
 
-  // Formatear el texto con saltos de línea y énfasis
-  const formatText = (text) => {
-    if (!text) return '';
-    
-    // Convertir **texto** a <strong>
-    let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Convertir saltos de línea a <br>
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    return formatted;
+  // Obtener ícono de status
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case MESSAGE_STATUS.SENDING:
+        return '⏳';
+      case MESSAGE_STATUS.SENT:
+        return '✓';
+      case MESSAGE_STATUS.DELIVERED:
+        return '✓✓';
+      case MESSAGE_STATUS.ERROR:
+        return '⚠️';
+      default:
+        return '';
+    }
   };
 
+  // Renderizar contenido del mensaje con formato
+  const renderContent = (content) => {
+    if (!content) return null;
+
+    // Convertir URLs a links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.messageLink}
+          >
+            {part}
+          </a>
+        );
+      }
+      
+      // Detectar y formatear código inline
+      if (part.includes('`')) {
+        const codeParts = part.split('`');
+        return codeParts.map((codePart, codeIndex) => {
+          if (codeIndex % 2 === 1) {
+            return (
+              <code key={`${index}-${codeIndex}`} className={styles.inlineCode}>
+                {codePart}
+              </code>
+            );
+          }
+          return codePart;
+        });
+      }
+      
+      return part;
+    });
+  };
+
+  // Si es un mensaje del sistema, renderizar de manera especial
+  if (isSystem) {
+    return (
+      <div className={styles.systemMessage}>
+        <span className={styles.systemIcon}>ℹ️</span>
+        <span className={styles.systemText}>{message.content}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className={styles.messageWrapper}>
-      <div className={`${styles.message} ${isUser ? styles.user : styles.assistant}`}>
-        <div className={styles.messageHeader}>
-          <span className={styles.messageAvatar}>
-            {isUser ? '👤' : '🤖'}
-          </span>
-          <span className={styles.messageSender}>
-            {isUser ? 'Tú' : 'Asistente Legal'}
-          </span>
-          <span className={styles.messageTime}>
-            {formatTimestamp(message.createdAt)}
-          </span>
+    <div 
+      className={`${styles.messageWrapper} ${
+        isUser ? styles.userMessage : styles.assistantMessage
+      }`}
+    >
+      <div className={styles.messageContainer}>
+        {/* Avatar */}
+        <div className={styles.messageAvatar}>
+          {isUser ? (
+            <div className={styles.userAvatar}>
+              {message.user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+          ) : (
+            <div className={styles.assistantAvatar}>⚖️</div>
+          )}
         </div>
 
+        {/* Contenido del mensaje */}
         <div className={styles.messageContent}>
-          <div
-            className={styles.messageText}
-            dangerouslySetInnerHTML={{ __html: formatText(message.content) }}
-          />
+          {/* Header con nombre y hora */}
+          <div className={styles.messageHeader}>
+            <span className={styles.messageSender}>
+              {isUser 
+                ? message.user?.name || 'Usuario' 
+                : 'Asistente Legal'
+              }
+            </span>
+            <span className={styles.messageTime}>
+              {formatTime(message.created_at || message.timestamp)}
+            </span>
+          </div>
 
-          {!isUser && hasArticles && (
-            <div className={styles.articlesSection}>
+          {/* Texto del mensaje */}
+          <div className={styles.messageText}>
+            {renderContent(message.content)}
+          </div>
+
+          {/* Artículos relacionados (solo para mensajes del asistente) */}
+          {isAssistant && message.articles && message.articles.length > 0 && (
+            <div className={styles.relatedArticles}>
               <button
                 className={styles.articlesToggle}
-                onClick={() => setShowArticles(!showArticles)}
+                onClick={() => setIsExpanded(!isExpanded)}
               >
-                <span className={styles.toggleIcon}>
-                  {showArticles ? '▼' : '▶'}
+                <span className={styles.articlesIcon}>📚</span>
+                <span>
+                  {message.articles.length} artículo{message.articles.length > 1 ? 's' : ''} relacionado{message.articles.length > 1 ? 's' : ''}
                 </span>
-                <span className={styles.toggleText}>
-                  Artículos citados ({message.metadata.articles.length})
+                <span className={styles.toggleIcon}>
+                  {isExpanded ? '▼' : '▶'}
                 </span>
               </button>
 
-              {showArticles && (
-                <div className={styles.articlesList}>
-                  {message.metadata.articles.map((article, index) => (
-                    <ArticleCard key={index} article={article} />
+              {isExpanded && (
+                <div className={styles.articlesContainer}>
+                  {message.articles.map((article, index) => (
+                    <ArticleCard 
+                      key={article.number || index} 
+                      article={article} 
+                    />
                   ))}
                 </div>
               )}
             </div>
           )}
 
-          {!isUser && message.metadata?.confidence && (
+          {/* Footer con estado (solo para mensajes del usuario) */}
+          {isUser && message.status && (
             <div className={styles.messageFooter}>
-              <span className={styles.confidenceLabel}>
-                Confianza: {Math.round(message.metadata.confidence * 100)}%
+              <span 
+                className={`${styles.messageStatus} ${
+                  message.status === MESSAGE_STATUS.ERROR 
+                    ? styles.statusError 
+                    : ''
+                }`}
+              >
+                {getStatusIcon(message.status)}
+              </span>
+            </div>
+          )}
+
+          {/* Indicador de error */}
+          {message.error && (
+            <div className={styles.messageError}>
+              <span className={styles.errorIcon}>⚠️</span>
+              <span className={styles.errorText}>
+                {message.error}
               </span>
             </div>
           )}
