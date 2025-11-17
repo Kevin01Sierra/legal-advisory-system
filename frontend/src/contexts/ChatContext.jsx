@@ -157,15 +157,22 @@ export const ChatProvider = ({ children }) => {
    */
   const loadConversations = useCallback(async () => {
     try {
+      console.log('📂 Cargando conversaciones...');
       const data = await chatService.getConversations();
       
+      console.log('✅ Conversaciones cargadas:', data);
+      
+      // Asegurarse de que data es un array
+      const conversationsArray = Array.isArray(data) ? data : [];
+      
       // Limitar el número de conversaciones mostradas
-      const limitedConversations = data.slice(0, CHAT_CONFIG.MAX_CONVERSATIONS_DISPLAY);
+      const limitedConversations = conversationsArray.slice(0, CHAT_CONFIG.MAX_CONVERSATIONS_DISPLAY);
       setConversations(limitedConversations);
       
       return { success: true, data: limitedConversations };
     } catch (err) {
-      console.error('Error al cargar conversaciones:', err);
+      console.error('❌ Error al cargar conversaciones:', err);
+      setConversations([]); // ✅ Establecer array vacío en caso de error
       return { success: false, error: err.message };
     }
   }, []);

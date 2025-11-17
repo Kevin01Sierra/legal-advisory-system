@@ -1,15 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
+import { useChat } from '../../hooks/useChat';
+import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/components/Chat.module.css';
 
-const ChatHeader = ({
-  currentConversation,
-  conversations,
-  onNewConversation,
-  onSelectConversation,
-  userName
-}) => {
+const ChatHeader = ({ conversation }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
+  const { conversations, loadConversations, loadConversation, newConversation } = useChat();
+  const { user } = useAuth();
 
   // Cerrar menú al hacer click fuera
   useEffect(() => {
@@ -23,7 +21,18 @@ const ChatHeader = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // ✅ Cargar conversaciones al abrir el menú
+  const handleMenuToggle = async () => {
+    if (!showMenu) {
+      console.log('📂 Cargando historial de conversaciones...');
+      await loadConversations();
+    }
+    setShowMenu(!showMenu);
+  };
+
   const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
@@ -40,6 +49,18 @@ const ChatHeader = ({
     });
   };
 
+  const handleSelectConversation = async (convId) => {
+    console.log('📖 Cargando conversación:', convId);
+    await loadConversation(convId);
+    setShowMenu(false);
+  };
+
+  const handleNewConversation = () => {
+    console.log('🆕 Nueva conversación');
+    newConversation();
+    setShowMenu(false);
+  };
+
   return (
     <header className={styles.chatHeader}>
       <div className={styles.headerLeft}>
@@ -50,14 +71,16 @@ const ChatHeader = ({
       </div>
 
       <div className={styles.headerCenter}>
-        {currentConversation && (
+        {conversation && (
           <div className={styles.conversationInfo}>
             <h2 className={styles.conversationTitle}>
-              {currentConversation.title || 'Sin título'}
+              {conversation.titulo || 'Sin título'}
             </h2>
-            <span className={styles.conversationDate}>
-              {formatDate(currentConversation.createdAt)}
-            </span>
+            {conversation.createdAt && (
+              <span className={styles.conversationDate}>
+                {formatDate(conversation.createdAt)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -65,7 +88,7 @@ const ChatHeader = ({
       <div className={styles.headerRight}>
         <button
           className={styles.newChatBtn}
-          onClick={onNewConversation}
+          onClick={handleNewConversation}
           title="Nueva conversación"
         >
           <span className={styles.btnIcon}>+</span>
@@ -75,7 +98,7 @@ const ChatHeader = ({
         <div className={styles.menuContainer} ref={menuRef}>
           <button
             className={styles.menuButton}
-            onClick={() => setShowMenu(!showMenu)}
+            onClick={handleMenuToggle}
             title="Historial de conversaciones"
           >
             <span className={styles.menuIcon}>☰</span>
@@ -86,12 +109,15 @@ const ChatHeader = ({
               <div className={styles.dropdownHeader}>
                 <h3>Historial de Conversaciones</h3>
                 <span className={styles.conversationCount}>
-                  {conversations.length} conversación{conversations.length !== 1 ? 'es' : ''}
+                  {/* ✅ FIX: Verificar que conversations existe y es un array */}
+                  {Array.isArray(conversations) ? conversations.length : 0} conversación
+                  {Array.isArray(conversations) && conversations.length !== 1 ? 'es' : ''}
                 </span>
               </div>
 
               <div className={styles.conversationList}>
-                {conversations.length === 0 ? (
+                {/* ✅ FIX: Verificar antes de mapear */}
+                {!Array.isArray(conversations) || conversations.length === 0 ? (
                   <div className={styles.emptyHistory}>
                     <p>No hay conversaciones previas</p>
                   </div>
@@ -100,27 +126,20 @@ const ChatHeader = ({
                     <button
                       key={conv.id}
                       className={`${styles.conversationItem} ${
-                        currentConversation?.id === conv.id ? styles.active : ''
+                        conversation?.id === conv.id ? styles.active : ''
                       }`}
-                      onClick={() => {
-                        onSelectConversation(conv.id);
-                        setShowMenu(false);
-                      }}
+                      onClick={() => handleSelectConversation(conv.id)}
                     >
                       <div className={styles.convItemHeader}>
                         <span className={styles.convTitle}>
-                          {conv.title || 'Sin título'}
+                          {conv.titulo || 'Sin título'}
                         </span>
-                        <span className={styles.convDate}>
-                          {formatDate(conv.createdAt)}
-                        </span>
+                        {conv.createdAt && (
+                          <span className={styles.convDate}>
+                            {formatDate(conv.createdAt)}
+                          </span>
+                        )}
                       </div>
-                      {conv.lastMessage && (
-                        <p className={styles.convPreview}>
-                          {conv.lastMessage.substring(0, 60)}
-                          {conv.lastMessage.length > 60 ? '...' : ''}
-                        </p>
-                      )}
                     </button>
                   ))
                 )}
@@ -131,7 +150,7 @@ const ChatHeader = ({
 
         <div className={styles.userInfo}>
           <span className={styles.userAvatar}>
-            {userName?.charAt(0).toUpperCase()}
+            {user?.nombre?.charAt(0).toUpperCase() || 'U'}
           </span>
         </div>
       </div>
