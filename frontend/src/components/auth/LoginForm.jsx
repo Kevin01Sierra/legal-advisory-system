@@ -246,10 +246,10 @@ const LoginForm = () => {
       {/* Demo credentials (solo en desarrollo) */}
       {process.env.NODE_ENV === 'development' && (
         <div className={styles.demoCredentials}>
-          <p className={styles.demoTitle}>🔧 Demo Credentials:</p>
+          <p className={styles.demoTitle}>🔧 Credenciales Demo:</p>
           <p className={styles.demoText}>
-            Email: demo@legal.com<br />
-            Password: demo123
+            Email: demoparacliente@empresa.com<br />
+            Password: cliente_demo01
           </p>
         </div>
       )}

@@ -75,27 +75,41 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.2rem;
-  background: var(--primary);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
   border-radius: var(--radius-md);
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+  transition: all 0.2s ease-in-out;
+  opacity: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .newChatBtn:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.newChatBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
 }
 
 .btnIcon {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .btnText {
   font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 /* Menu Dropdown */
@@ -709,33 +723,298 @@
   font-size: 0.75rem;
 }
 
-/* Responsive */
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablets y dispositivos medianos (768px - 1024px) */
+@media (max-width: 1024px) {
+  .chatHeader {
+    padding: 0.875rem 1.25rem;
+  }
+
+  .conversationTitle {
+    font-size: 0.95rem;
+  }
+
+  .dropdown {
+    width: 300px;
+  }
+}
+
+/* Móviles grandes y tablets pequeñas (481px - 768px) */
 @media (max-width: 768px) {
   .chatHeader {
     padding: 0.75rem 1rem;
   }
 
+  /* Ocultar texto del logo pero mantener ícono */
   .logoText {
     display: none;
   }
 
+  /* Título de conversación más pequeño */
   .conversationTitle {
     font-size: 0.9rem;
   }
 
+  
   .btnText {
     display: none;
   }
 
+  .newChatBtn {
+    padding: 0.65rem 0.75rem;
+    min-width: 42px;
+    justify-content: center;
+  }
+
+  .btnIcon {
+    font-size: 1.4rem;
+    margin: 0;
+  }
+
+  /* Mensajes ocupan más espacio en pantalla */
   .message {
     max-width: 90%;
   }
 
+  /* Dropdown del historial más estrecho */
   .dropdown {
     width: 280px;
+    max-height: 350px;
+  }
+
+  /* Sugerencias en una columna */
+  .suggestionCards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Avatar de usuario más pequeño */
+  .userAvatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+
+  /* Input de chat más compacto */
+  .chatInputContainer {
+    padding: 0.875rem 1rem;
+  }
+
+  .chatTextarea {
+    padding: 0.875rem 3rem 0.875rem 0.875rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Móviles pequeños (320px - 480px) */
+@media (max-width: 480px) {
+  .chatHeader {
+    padding: 0.625rem 0.875rem;
+    gap: 0.5rem;
+  }
+
+  .headerLeft,
+  .headerRight {
+    gap: 0.5rem;
+  }
+
+  /* Logo solo ícono en móviles pequeños */
+  .logo {
+    gap: 0;
+  }
+
+  .logoIcon {
+    font-size: 1.5rem;
+  }
+
+  /* Conversación centrada más compacta */
+  .conversationInfo {
+    max-width: 150px;
+  }
+
+  .conversationTitle {
+    font-size: 0.85rem;
+  }
+
+  .conversationDate {
+    font-size: 0.75rem;
+  }
+
+  /* ✅ BOTÓN NUEVA CONSULTA - Más compacto */
+  .newChatBtn {
+    padding: 0.5rem;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+
+  .btnIcon {
+    font-size: 1.3rem;
+  }
+
+  /* Menú hamburguesa más pequeño */
+  .menuButton {
+    padding: 0.5rem;
+    width: 38px;
+    height: 38px;
+  }
+
+  .menuIcon {
+    font-size: 1.1rem;
+  }
+
+  /* Avatar más pequeño */
+  .userAvatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  /* Dropdown ocupa casi toda la pantalla */
+  .dropdown {
+    width: calc(100vw - 2rem);
+    right: -0.5rem;
+    max-height: 300px;
+  }
+
+  /* Mensajes ocupan más espacio */
+  .message {
+    max-width: 95%;
+    padding: 1rem;
+  }
+
+  .messageHeader {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .messageAvatar {
+    font-size: 1.25rem;
+  }
+
+  .messageSender {
+    font-size: 0.875rem;
+  }
+
+  .messageTime {
+    font-size: 0.7rem;
+  }
+
+  /* Cards de artículos más compactos */
+  .articleCard {
+    padding: 0.875rem;
+  }
+
+  .articleNumber,
+  .articleTitleText {
+    font-size: 0.85rem;
+  }
+
+  /* Input de chat más compacto */
+  .chatInputContainer {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .chatTextarea {
+    padding: 0.75rem 2.75rem 0.75rem 0.75rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  .sendButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sendIcon {
+    font-size: 1.1rem;
+  }
+
+  .inputHint {
+    display: none;
+  }
+
+  /* Sugerencias más compactas */
+  .suggestionCard {
+    padding: 1.25rem 1rem;
+  }
+
+  .suggestionCard .icon {
+    font-size: 1.75rem;
+  }
+
+  /* Welcome message más pequeño */
+  .welcomeMessage h2 {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* Móviles extra pequeños (< 360px) */
+@media (max-width: 360px) {
+  .chatHeader {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Ocultar el centro en pantallas muy pequeñas */
+  .headerCenter {
+    display: none;
+  }
+
+  .newChatBtn {
+    width: 36px;
+    height: 36px;
+    padding: 0.45rem;
+  }
+
+  .btnIcon {
+    font-size: 1.2rem;
+  }
+
+  .menuButton {
+    width: 36px;
+    height: 36px;
+    padding: 0.45rem;
+  }
+
+  .userAvatar {
+    width: 26px;
+    height: 26px;
+    font-size: 0.8rem;
+  }
+
+  .message {
+    padding: 0.875rem;
+    font-size: 0.9rem;
+  }
+
+  .dropdown {
+    width: calc(100vw - 1.5rem);
+  }
+}
+
+/* Landscape en móviles */
+@media (max-height: 600px) and (orientation: landscape) {
+  .chatHeader {
+    padding: 0.5rem 1rem;
+  }
+
+  .newChatBtn {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .dropdown {
+    max-height: 250px;
+  }
+
+  .welcomeMessage h2 {
+    font-size: 1.5rem;
   }
 
   .suggestionCards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 }

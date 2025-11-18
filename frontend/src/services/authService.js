@@ -62,14 +62,27 @@ export const authService = {
   async logout() {
     try {
       // Intentar llamar al endpoint de logout del backend
-      await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
+      const token = this.getAuthToken();
+      
+      if (token) {
+        // Solo intentar logout en backend si hay token
+        await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
+        console.log('✅ Logout exitoso en backend');
+      } else {
+        console.log('ℹ️ No hay token, solo limpiando datos locales');
+      }
     } catch (error) {
-      // Continuar aunque falle el logout en el backend
-      console.warn('Error al hacer logout en el backend:', error);
+      // ✅ Silenciar errores del backend (404, 401, etc.)
+      // El logout siempre debe funcionar aunque el backend falle
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        console.log('ℹ️ Endpoint de logout no disponible, continuando...');
+      } else {
+        console.log('ℹ️ Error al hacer logout en backend (ignorado):', error.message);
+      }
     } finally {
-      // Siempre limpiar datos locales
+      // ✅ SIEMPRE limpiar datos locales, independientemente del resultado
       this.clearAuthData();
-      console.log('✅ Datos de auth limpiados');
+      console.log('✅ Datos de autenticación limpiados del navegador');
     }
   },
 

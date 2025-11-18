@@ -1,7 +1,7 @@
 /**
  * ChatInterface.jsx
  * Componente principal de la interfaz de chat
- * FINAL: Crea conversación localmente, el backend la crea al enviar primer mensaje
+ * CORREGIDO: Maneja correctamente el estado de nuevo chat
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -30,16 +30,15 @@ const ChatInterface = () => {
   
   const { showToast } = useToast();
   const messagesEndRef = useRef(null);
-  const hasInitialized = useRef(false);
 
-  // ✅ Crear conversación LOCAL (no hace POST, solo habilita el chat)
+  // ✅ CORREGIDO: useEffect se ejecuta cada vez que currentConversation cambia a null
+  // IMPORTANTE: No incluir createConversation en las dependencias para evitar loops
   useEffect(() => {
-    if (!currentConversation && !loading && !hasInitialized.current) {
-      hasInitialized.current = true;
+    if (!currentConversation && !loading) {
       console.log('✅ Habilitando chat - conversación se creará al enviar primer mensaje');
       createConversation('Nueva Consulta Legal');
     }
-  }, [currentConversation, loading, createConversation]);
+  }, [currentConversation, loading]); // ⚠️ NO incluir createConversation aquí
 
   // Auto-scroll al final de los mensajes
   const scrollToBottom = () => {
@@ -96,12 +95,23 @@ const ChatInterface = () => {
     handleSendMessage(query);
   };
 
-  // Vista vacía inicial
-  if (!currentConversation) {
+  // ✅ CORREGIDO: Mostrar loading solo si realmente está cargando
+  if (!currentConversation && loading) {
     return (
       <div className={styles.chatEmpty}>
         <div className={styles.emptyContent}>
           <Loading size="medium" text="Preparando chat..." />
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Si no hay conversación pero tampoco está cargando, mostrar mensaje
+  if (!currentConversation) {
+    return (
+      <div className={styles.chatEmpty}>
+        <div className={styles.emptyContent}>
+          <p>Inicializando chat...</p>
         </div>
       </div>
     );

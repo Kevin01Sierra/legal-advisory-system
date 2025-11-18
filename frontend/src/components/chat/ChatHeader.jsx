@@ -6,7 +6,7 @@ import styles from '../../styles/components/Chat.module.css';
 const ChatHeader = ({ conversation }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
-  const { conversations, loadConversations, loadConversation, newConversation } = useChat();
+  const { conversations, loadConversations, loadConversation, newConversation, createConversation } = useChat();
   const { user } = useAuth();
 
   // Cerrar menú al hacer click fuera
@@ -55,9 +55,25 @@ const ChatHeader = ({ conversation }) => {
     setShowMenu(false);
   };
 
+  /**
+   * ✅ CORREGIDO: Handler para crear nuevo chat
+   * Paso 1: Limpia el estado actual
+   * Paso 2: Crea conversación local inmediatamente
+   */
   const handleNewConversation = () => {
-    console.log('🆕 Nueva conversación');
+    console.log('🆕 Nueva conversación - Limpiando estado...');
+    
+    // Paso 1: Limpiar estado actual
     newConversation();
+    
+    // Paso 2: Crear conversación local inmediatamente
+    // Usamos setTimeout para asegurar que el estado se limpió primero
+    setTimeout(() => {
+      console.log('✅ Creando conversación local...');
+      createConversation('Nueva Consulta Legal');
+    }, 50);
+    
+    // Cerrar menú
     setShowMenu(false);
   };
 
@@ -109,14 +125,12 @@ const ChatHeader = ({ conversation }) => {
               <div className={styles.dropdownHeader}>
                 <h3>Historial de Conversaciones</h3>
                 <span className={styles.conversationCount}>
-                  {/* ✅ FIX: Verificar que conversations existe y es un array */}
                   {Array.isArray(conversations) ? conversations.length : 0} conversación
                   {Array.isArray(conversations) && conversations.length !== 1 ? 'es' : ''}
                 </span>
               </div>
 
               <div className={styles.conversationList}>
-                {/* ✅ FIX: Verificar antes de mapear */}
                 {!Array.isArray(conversations) || conversations.length === 0 ? (
                   <div className={styles.emptyHistory}>
                     <p>No hay conversaciones previas</p>

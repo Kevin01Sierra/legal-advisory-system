@@ -321,7 +321,7 @@ export const LEGAL_INFO = {
   CODE_LAW: 'Ley 599 de 2000',
   CODE_DATE: '24 de julio de 2000',
   DISCLAIMER: 'Este sistema proporciona información educativa basada en el Código Penal colombiano. No constituye asesoría legal profesional.',
-  COPYRIGHT: '© 2024 Universidad Distrital Francisco José de Caldas',
+  COPYRIGHT: '© 2025 Universidad Distrital Francisco José de Caldas',
   CONTACT_EMAIL: 'knsierrag@udistrital.edu.co',
 };
 
